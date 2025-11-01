@@ -261,3 +261,8 @@ def test_mass(alternative, params=None, inputs=None):
 def test_time(alternative, params=None, inputs=None):
     _, time = compute_mass_time(alternative, params=params, inputs=inputs)
     return time
+
+
+## Funcion para calcular el coste
+def compute_cost(bus_new, instrument_complexity):
+    return tuple(np.exp(1.52 * np.array(bus_new) + 0.467 * np.array(instrument_complexity)))

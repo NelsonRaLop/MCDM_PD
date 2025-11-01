@@ -2,7 +2,7 @@ import numpy as np
 import matplotlib.pyplot as plt
 import fuzzy_ranking
 import asteroid_generator
-import alternative_physics
+import alternative_calculus
 
 def weighting(
     fuzzy_weights_fucom,
@@ -423,11 +423,6 @@ def cost_params(
     def rank_swara(matrix):
         return np.array(fuzzy_ranking.ranking_FTOPSIS(matrix, criteria_type, aggregated_fuzzy_weight_swara), dtype=float)
 
-    # función compute_cost tal y como la tenías (devuelve TFN)
-    def compute_cost(bus_new, instrument_complexity):
-        # bus_new, instrument_complexity son TFNs (l,m,u); aplicar la fórmula elemento a elemento
-        return tuple(np.exp(1.52 * np.array(bus_new) + 0.467 * np.array(instrument_complexity)))
-
     # loop de simulaciones
     for s in range(n):
         # copia base (lista de listas de TFNs)
@@ -446,7 +441,7 @@ def cost_params(
             i3 = rng.uniform(i2, 1.0)
             inst_tfn = (float(i1), float(i2), float(i3))
 
-            cost_tfn = compute_cost(bus_tfn, inst_tfn)
+            cost_tfn = alternative_calculus.compute_cost(bus_tfn, inst_tfn)
 
             # aseguramos tupla de floats (l,m,u)
             cost_tfn = (float(cost_tfn[0]), float(cost_tfn[1]), float(cost_tfn[2]))
@@ -514,7 +509,7 @@ def ast_params(
     Comportamiento:
     - Ejecuta `n` simulaciones usando `asteroid_generator.asteroid_random()`.
     - Para cada simulación sustituye `test_mass` y `test_time` por los TFNs
-      devueltos por `alternative_physics.test_mass` / `test_time`.
+      devueltos por `alternative_calculus.test_mass` / `test_time`.
     - Calcula rankings con FUCOM y SWARA usando la firma existente
       `fuzzy_ranking.ranking_FTOPSIS(matrix, criteria_type, weights)`.
     - Devuelve estructura compatible con `linguistic` y `cost_params`.
@@ -549,8 +544,8 @@ def ast_params(
             params = asteroid_generator.asteroid_random()
 
             # cálculo de TFNs usando el módulo de física alternativo
-            mass_tfn = alternative_physics.test_mass(alt, params=params)
-            time_tfn = alternative_physics.test_time(alt, params=params)
+            mass_tfn = alternative_calculus.test_mass(alt, params=params)
+            time_tfn = alternative_calculus.test_time(alt, params=params)
 
             # insertar TFNs (se asume tupla inmutable (l,m,u))
             M[ai][idx_mass] = (float(mass_tfn[0]), float(mass_tfn[1]), float(mass_tfn[2]))

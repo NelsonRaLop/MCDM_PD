@@ -17,6 +17,7 @@ Functions:
 """
 
 import numpy as np
+import matplotlib.pyplot as plt
 from scipy.optimize import linprog
 from scipy.stats import pearsonr
 
@@ -177,9 +178,10 @@ def f_fucom(criteria_order, chis):
 
     # Print
     print('\nResults F-FUCOM:')
-    print(f'eta min = {eta}')
-    for i,(t,dn) in enumerate(zip(tfns_out, defuzz_norm_out), start=1):
-        print(f"w_{i} = {_format_tfn(t)}, w_{i}def (norm) = {dn:.12f}")
+    print(f'eta min = {eta:.3f}')
+    for i, (t, dn) in enumerate(zip(tfns_out, defuzz_norm_out), start=1):
+        print(f"w_{i} = ({t[0]:.2f}, {t[1]:.2f}, {t[2]:.2f}), w_{i} (def) = {dn:.2f}")
+
 
     return tfns_out
 
@@ -226,8 +228,8 @@ def f_swara(criteria_order, chis):
     defuzz_norm_out = _reorder(defuzz_norm, criteria_order)
 
     print('\nResults F-SWARA:')
-    for i,(t,dn) in enumerate(zip(tfns_out, defuzz_norm_out), start=1):
-        print(f"w_{i} = {_format_tfn(t)}, w_{i}def (norm) = {dn:.12f}")
+    for i, (t, dn) in enumerate(zip(tfns_out, defuzz_norm_out), start=1):
+        print(f"w_{i} = ({t[0]:.2f}, {t[1]:.2f}, {t[2]:.2f}), w_{i} (def) = {dn:.2f}")
 
     return tfns_out
 
@@ -238,16 +240,87 @@ def f_swara(criteria_order, chis):
 def pearson(fucom_tfns, swara_tfns):
     """Computes and prints pearson correlation coeficient of the defuzzified weigths
     """
-    if len(fucom_tfns) != len(swara_tfns):
-        raise ValueError('Both list must have the same number of criterion')
 
     fucom_def = [ _defuzz_raw(t) for t in fucom_tfns ]
     swara_def = [ _defuzz_raw(t) for t in swara_tfns ]
 
     try:
         r_val, p_val = pearsonr(np.array(fucom_def), np.array(swara_def))
-        print(f"Pearson correlation coefficient r = {r_val:.5f}")
+        print(f"Pearson correlation coefficient r = {r_val:.3f}")
         return float(r_val)
     except Exception as e:
         print('Error when computing pearson cor.coefficient:', e)
         return None
+
+def radar_plot(expert_tfns_fucom, expert_tfns_swara,
+               aggregated_fucom_def, aggregated_swara_def,
+               criteria_labels=None):
+    import matplotlib.pyplot as plt
+    import numpy as np
+
+    n_crit = len(aggregated_fucom_def)
+    if criteria_labels is None:
+        criteria_labels = [f"C{i+1}" for i in range(n_crit)]
+
+    def _defuzz_raw(t):
+        a, b, c = t
+        return (a + 4*b + c)/6
+
+    def _per_expert_defs(expert_tfns):
+        out = []
+        for tfns in expert_tfns:
+            vals = [_defuzz_raw(tuple(t)) for t in tfns]
+            out.append(vals)
+        return out
+
+    experts_fucom = _per_expert_defs(expert_tfns_fucom)
+    experts_swara = _per_expert_defs(expert_tfns_swara)
+
+    def _closed(v): return v + [v[0]]
+    angles = np.linspace(0, 2*np.pi, n_crit, endpoint=False).tolist()
+    angles += angles[:1]
+
+    def _plot_ax(ax, experts_vals, agg_vals, title):
+        cmap = plt.get_cmap('tab10')
+        # dibujar expertos
+        for i, ev in enumerate(experts_vals):
+            color = cmap(i % 10)
+            ax.plot(angles, _closed(ev), linestyle=':', marker='o', linewidth=2, alpha=0.7, color=color, label=f'Expert {i+1}')
+        # dibujar agregado
+        ax.plot(angles, _closed(list(agg_vals)), linestyle='-', marker='o', linewidth=2, color='black', label='Aggregated')
+        ax.set_theta_offset(np.pi/2)
+        ax.set_theta_direction(-1)
+        ax.set_thetagrids(np.degrees(angles[:-1]), labels=criteria_labels)
+        for label in ax.get_xticklabels():
+            label.set_y(label.get_position()[1] - 0.1)  # sube un poco cada etiqueta
+        mx = max(max(max(ev) for ev in experts_vals), max(agg_vals))
+        ax.set_ylim(0, mx*1.1 if mx > 0 else 1)
+        # hacer que el círculo exterior sea gris
+        ax.spines['polar'].set_color('gray')
+        ax.spines['polar'].set_linewidth(1)
+        ax.set_title(title)
+
+    fig, (ax1, ax2) = plt.subplots(1, 2, subplot_kw=dict(polar=True), figsize=(14,6))
+    _plot_ax(ax1, experts_fucom, aggregated_fucom_def, 'FUCOM aggregated weights')
+    _plot_ax(ax2, experts_swara, aggregated_swara_def, 'SWARA aggregated weights')
+    ax1.set_title("FUCOM aggregated weights", pad=20)
+    ax2.set_title("SWARA aggregated weights", pad=20)
+
+    # leyenda centrada con todos los labels
+    handles, labels = [], []
+    for ax in [ax1, ax2]:
+        h, l = ax.get_legend_handles_labels()
+        handles.extend(h)
+        labels.extend(l)
+    # eliminar duplicados por color/label
+    seen = set()
+    handles_labels = []
+    for h,l in zip(handles, labels):
+        if l not in seen:
+            handles_labels.append((h,l))
+            seen.add(l)
+    handles, labels = zip(*handles_labels)
+
+    fig.legend(handles=handles, labels=labels, loc='lower center', ncol=len(handles), fontsize=10)
+    plt.tight_layout(rect=[0,0.08,1,1])
+    plt.show()
